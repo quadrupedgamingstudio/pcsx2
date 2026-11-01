@@ -328,6 +328,15 @@ namespace VMManager
 		/// Throttles execution, or limits the frame rate.
 		void Throttle(bool vsync_start);
 
+		/// Returns true when the low-latency "pre-frame sleep" pacing path is in use.
+		bool IsPreFrameSleepActive();
+
+		/// Records the end of the previous frame's emulation, used to estimate how long a frame takes.
+		void PreFrameSleepFrameDone();
+
+		/// Sleeps until just before the next frame must start emulating, so input is sampled as late as possible.
+		void PreFrameSleep();
+
 		/// Resets/clears all execution/code caches.
 		void ClearCPUExecutionCaches();
 

@@ -1200,9 +1200,11 @@ struct Pcsx2Config
 		BITFIELD32()
 		bool SyncToHostRefreshRate : 1;
 		bool UseVSyncForTiming : 1;
+		bool PreFrameSleep : 1;
 		BITFIELD_END
 
 		float NominalScalar{1.0f};
+		float PreFrameSleepBuffer{2.0f}; // milliseconds of safety margin left before the frame deadline
 		float TurboScalar{2.0f};
 		float SlomoScalar{0.5f};
 

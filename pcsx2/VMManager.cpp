@@ -195,6 +195,14 @@ static bool s_target_speed_can_sync_to_host = false;
 static bool s_target_speed_synced_to_host = false;
 static bool s_use_vsync_for_timing = false;
 
+// Pre-frame sleep (low input latency pacing). Instead of emulating a frame immediately and then idling until
+// it is due, we idle first and emulate the frame "just in time", so the controller state the game reads is as
+// fresh as possible when the frame is handed to the GS.
+static bool s_pre_frame_sleep_active = false;
+static s64 s_pre_frame_buffer_ticks = 0;
+static s64 s_pre_frame_emu_ticks_estimate = 0;
+static u64 s_pre_frame_emu_start = 0;
+
 // Used to track play time. We use a monotonic timer here, in case of clock changes.
 static u64 s_session_resume_timestamp = 0;
 static u64 s_session_accumulated_playtime = 0;
@@ -2282,6 +2290,21 @@ void VMManager::UpdateTargetSpeed()
 	s_limiter_ticks_per_frame =
 		static_cast<s64>(static_cast<double>(GetTickFrequency()) / static_cast<double>(std::max(frame_rate * target_speed, 1.0f)));
 
+	// Pre-frame sleep only makes sense when our own limiter is pacing frames, at normal speed.
+	// With vsync-for-timing the host swap chain paces us, and turbo/slow-mo/unlimited don't care about latency.
+	const bool pre_frame_sleep_was_active = s_pre_frame_sleep_active;
+	s_pre_frame_sleep_active = (EmuConfig.EmulationSpeed.PreFrameSleep && target_speed > 0.0f && !s_use_vsync_for_timing &&
+								s_limiter_mode == LimiterModeType::Nominal);
+	s_pre_frame_buffer_ticks = static_cast<s64>(
+		static_cast<double>(GetTickFrequency()) * static_cast<double>(EmuConfig.EmulationSpeed.PreFrameSleepBuffer) / 1000.0);
+	if (s_pre_frame_sleep_active != pre_frame_sleep_was_active)
+	{
+		s_pre_frame_emu_ticks_estimate = s_limiter_ticks_per_frame;
+		s_pre_frame_emu_start = 0;
+		Console.WriteLn("Pre-frame sleep %s (buffer %.1f ms)", s_pre_frame_sleep_active ? "enabled" : "disabled",
+			EmuConfig.EmulationSpeed.PreFrameSleepBuffer);
+	}
+
 	DevCon.WriteLn(fmt::format("Frame rate: {}, target speed: {}, target frame rate: {}, ticks per frame: {}", frame_rate, target_speed,
 		target_frame_rate, s_limiter_ticks_per_frame));
 
@@ -2308,6 +2331,10 @@ float VMManager::GetFrameRate()
 void VMManager::ResetFrameLimiter()
 {
 	s_limiter_frame_start = GetCPUTicks();
+
+	// Start pessimistic (assume a full frame of work) and let the estimate settle over the next second or so.
+	s_pre_frame_emu_ticks_estimate = s_limiter_ticks_per_frame;
+	s_pre_frame_emu_start = 0;
 }
 
 void VMManager::Internal::Throttle(bool vsync_start)
@@ -2351,6 +2378,52 @@ void VMManager::Internal::Throttle(bool vsync_start)
 		// Finally, set our next frame start to when this one ends
 		s_limiter_frame_start = uExpectedEnd;
 	}
+}
+
+bool VMManager::Internal::IsPreFrameSleepActive()
+{
+	// Advanced Frame Display hands frames over at vsync end, which defeats the just-in-time scheduling.
+	return s_pre_frame_sleep_active && !EmuConfig.GS.AdvancedFrameDisplay;
+}
+
+void VMManager::Internal::PreFrameSleepFrameDone()
+{
+	if (s_pre_frame_emu_start == 0)
+		return;
+
+	const s64 emu_ticks = static_cast<s64>(GetCPUTicks() - s_pre_frame_emu_start);
+	s_pre_frame_emu_start = 0;
+
+	// Track the slowest recent frame: jump up immediately on a spike, decay slowly (~1/32 per frame) afterwards.
+	// Erring on the high side only costs a little latency; erring low costs a missed frame.
+	if (emu_ticks >= s_pre_frame_emu_ticks_estimate)
+		s_pre_frame_emu_ticks_estimate = emu_ticks;
+	else
+		s_pre_frame_emu_ticks_estimate -= (s_pre_frame_emu_ticks_estimate - emu_ticks) / 32;
+
+	s_pre_frame_emu_ticks_estimate = std::min(s_pre_frame_emu_ticks_estimate, s_limiter_ticks_per_frame);
+}
+
+void VMManager::Internal::PreFrameSleep()
+{
+	// s_limiter_frame_start is the deadline we just presented on; the next frame is due one frame later.
+	const s64 budget = s_pre_frame_emu_ticks_estimate + s_pre_frame_buffer_ticks;
+	if (budget < s_limiter_ticks_per_frame)
+	{
+		const u64 wake = s_limiter_frame_start + static_cast<u64>(s_limiter_ticks_per_frame - budget);
+		u64 now = GetCPUTicks();
+		if (now < wake)
+		{
+			const s32 msec = static_cast<s32>(((wake - now) * 1000) / GetTickFrequency());
+			if (msec > 1)
+				Threading::Sleep(msec - 1);
+			while (GetCPUTicks() < wake)
+			{
+			}
+		}
+	}
+
+	s_pre_frame_emu_start = GetCPUTicks();
 }
 
 void VMManager::Internal::FrameRateChanged()

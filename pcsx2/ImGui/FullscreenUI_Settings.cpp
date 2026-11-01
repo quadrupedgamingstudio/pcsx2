@@ -2752,6 +2752,16 @@ void FullscreenUI::DrawEmulationSettingsPage()
 		SetSettingsChanged(bsi);
 	}
 
+	const bool pre_frame_sleep = GetEffectiveBoolSetting(bsi, "EmuCore/GS", "PreFrameSleep", false);
+	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_BED, "Pre-Frame Sleep"),
+		FSUI_CSTR("Idles before emulating each frame instead of after, so controller input is read as late as possible. "
+				  "Reduces input lag, but needs CPU headroom. Not used with Host VSync Timing or Advanced Frame Display."),
+		"EmuCore/GS", "PreFrameSleep", false);
+
+	DrawFloatSpinBoxSetting(bsi, FSUI_ICONSTR(ICON_FA_STOPWATCH, "Pre-Frame Sleep Buffer"),
+		FSUI_CSTR("Safety margin kept before each frame deadline. Raise it if you see stutter with Pre-Frame Sleep enabled."),
+		"EmuCore/GS", "PreFrameSleepBuffer", 2.0f, 0.0f, 20.0f, 0.5f, 1.0f, "%.1f ms", pre_frame_sleep);
+
 	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_ANGLES_RIGHT, "Advanced Frame Display"),
 		FSUI_CSTR("Displays the newest frame immediately at the beginning of the "
 		"frame raster time, instead of at the end. Can reduce perceived "

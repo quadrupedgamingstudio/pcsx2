@@ -492,13 +492,33 @@ static __fi void VSyncStart(u64 sCycle)
 	DoFMVSwitch();
 	VMManager::Internal::VSyncOnCPUThread();
 
-	// Don't bother throttling if we're going to pause.
-	if (!VMManager::Internal::IsExecutionInterrupted())
-		VMManager::Internal::Throttle(true);
-
-	if (!EmuConfig.GS.AdvancedFrameDisplay)
+	if (VMManager::Internal::IsPreFrameSleepActive())
 	{
-		gsPostVsyncStart(); // MUST be after framelimit; doing so before causes funk with frame times!
+		// Low-latency path. The frame has already been emulated (just in time, see below), so wait for its
+		// deadline, hand it to the GS straight away, then idle *before* reading the pad and emulating the next
+		// frame. The frame still reaches the GS on the same fixed schedule, but it now contains input sampled
+		// a few milliseconds earlier instead of most of a frame earlier.
+		VMManager::Internal::PreFrameSleepFrameDone();
+
+		if (!VMManager::Internal::IsExecutionInterrupted())
+			VMManager::Internal::Throttle(false);
+
+		if (!EmuConfig.GS.AdvancedFrameDisplay)
+			gsPostVsyncStart();
+
+		if (!VMManager::Internal::IsExecutionInterrupted())
+			VMManager::Internal::PreFrameSleep();
+	}
+	else
+	{
+		// Don't bother throttling if we're going to pause.
+		if (!VMManager::Internal::IsExecutionInterrupted())
+			VMManager::Internal::Throttle(true);
+
+		if (!EmuConfig.GS.AdvancedFrameDisplay)
+		{
+			gsPostVsyncStart(); // MUST be after framelimit; doing so before causes funk with frame times!
+		}
 	}
 
 	// Poll input after MTGS frame push, just in case it has to stall to catch up.
@@ -569,7 +589,9 @@ static __fi void GSVSync()
 static __fi void VSyncEnd(u64 sCycle)
 {
 	EECNT_LOG("    ================  EE COUNTER VSYNC END (frame: %d)  ================", g_FrameCount);
-	VMManager::Internal::Throttle(false);
+	// With pre-frame sleep, all throttling happens at vsync start.
+	if (!VMManager::Internal::IsPreFrameSleepActive())
+		VMManager::Internal::Throttle(false);
 
 	if (EmuConfig.GS.AdvancedFrameDisplay)
 	{

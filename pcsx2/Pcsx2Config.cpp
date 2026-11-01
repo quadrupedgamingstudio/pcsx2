@@ -1748,6 +1748,7 @@ void Pcsx2Config::EmulationSpeedOptions::SanityCheck()
 	NominalScalar = std::clamp(NominalScalar, 0.05f, 10.0f);
 	TurboScalar = std::clamp(TurboScalar, 0.05f, 10.0f);
 	SlomoScalar = std::clamp(SlomoScalar, 0.05f, 10.0f);
+	PreFrameSleepBuffer = std::clamp(PreFrameSleepBuffer, 0.0f, 20.0f);
 }
 
 void Pcsx2Config::EmulationSpeedOptions::LoadSave(SettingsWrapper& wrap)
@@ -1762,11 +1763,13 @@ void Pcsx2Config::EmulationSpeedOptions::LoadSave(SettingsWrapper& wrap)
 	//SettingsWrapBitBool(SyncToHostRefreshRate);
 	SyncToHostRefreshRate = wrap.EntryBitBool("EmuCore/GS", "SyncToHostRefreshRate", SyncToHostRefreshRate, SyncToHostRefreshRate);
 	UseVSyncForTiming = wrap.EntryBitBool("EmuCore/GS", "UseVSyncForTiming", UseVSyncForTiming, UseVSyncForTiming);
+	PreFrameSleep = wrap.EntryBitBool("EmuCore/GS", "PreFrameSleep", PreFrameSleep, PreFrameSleep);
+	wrap.Entry("EmuCore/GS", "PreFrameSleepBuffer", PreFrameSleepBuffer, PreFrameSleepBuffer);
 }
 
 bool Pcsx2Config::EmulationSpeedOptions::operator==(const EmulationSpeedOptions& right) const
 {
-	return OpEqu(bitset) && OpEqu(NominalScalar) && OpEqu(TurboScalar) && OpEqu(SlomoScalar);
+	return OpEqu(bitset) && OpEqu(NominalScalar) && OpEqu(TurboScalar) && OpEqu(SlomoScalar) && OpEqu(PreFrameSleepBuffer);
 }
 
 bool Pcsx2Config::EmulationSpeedOptions::operator!=(const EmulationSpeedOptions& right) const
