@@ -4,6 +4,7 @@
 #include "ImGui/ImGuiManager.h"
 #include "Input/InputManager.h"
 #include "Input/InputSource.h"
+#include "MouseLook.h"
 #include "SIO/Pad/Pad.h"
 #include "SIO/Sio.h"
 #include "USB/USB.h"
@@ -1116,6 +1117,15 @@ bool InputManager::InvokeEvents(InputBindingKey key, float value, GenericInputBi
 
 	// If imgui ate the event, don't fire our handlers.
 	const bool skip_button_handlers = PreprocessEvent(key, value, generic_key, axis_neg_key, axis_pos_key);
+
+	// Mouse look menu mode can turn clicks into confirm/back while a supported game is in a menu.
+	// Releases are always offered so a press it took is never left held.
+	if (key.source_type == InputSourceType::Pointer && key.source_subtype == InputSubclass::PointerButton &&
+		(!skip_button_handlers || value <= 0.0f) && MouseLook::HandlePointerButton(key.data, value))
+	{
+		return true;
+	}
+
 	return ProcessEvent(key, value, skip_button_handlers);
 }
 
@@ -1382,12 +1392,23 @@ void InputManager::GenerateRelativeMouseEvents()
 					value += s_pointer_axis_dead_zone[axis];
 				else if (value < 0.0f)
 					value -= s_pointer_axis_dead_zone[axis];
+
+				// Raw movement for native mouse look (no-op unless active for the running game).
+				if (delta != 0.0f && device == 0)
+					MouseLook::AddPointerDelta(axis, delta);
 			}
 			else
 			{
 				// ImGui can consume mouse wheel events when the mouse is over a UI element.
 				if (delta != 0.0f && ImGuiManager::ProcessPointerAxisEvent(key, delta))
 					continue;
+
+				// Mouse look menu mode turns the vertical wheel into D-pad up/down while in a game menu.
+				if (delta != 0.0f && device == 0 && axis == static_cast<u32>(InputPointerAxis::WheelY) &&
+					MouseLook::HandleWheel(delta))
+				{
+					continue;
+				}
 
 				value = std::clamp(delta, -1.0f, 1.0f);
 			}
@@ -1673,13 +1694,16 @@ void InputManager::ReloadBindings(SettingsInterface& si, SettingsInterface& bind
 	for (u32 port = 0; port < USB::NUM_PORTS; port++)
 		AddUSBBindings(binding_si, port, is_binding_profile);
 
+	// Picks up the per-game [MouseLook] settings and the driver for the running game.
+	MouseLook::LoadSettings(si);
+
 	UpdateHostMouseMode();
 }
 
 void InputManager::UpdateHostMouseMode()
 {
 	// Check for relative mode bindings, and enable if there's anything using it.
-	bool has_relative_mode_bindings = !s_pointer_move_callbacks.empty();
+	bool has_relative_mode_bindings = !s_pointer_move_callbacks.empty() || MouseLook::WantsRelativeMouse();
 	if (!has_relative_mode_bindings)
 	{
 		for (const auto& it : s_binding_map)

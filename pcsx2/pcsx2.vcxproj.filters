@@ -1325,6 +1325,12 @@
     <ClCompile Include="Input\InputManager.cpp">
       <Filter>Misc\Input</Filter>
     </ClCompile>
+    <ClCompile Include="MouseLook.cpp">
+      <Filter>Misc\Input</Filter>
+    </ClCompile>
+    <ClCompile Include="MouseLookGames.cpp">
+      <Filter>Misc\Input</Filter>
+    </ClCompile>
     <ClCompile Include="Input\DInputSource.cpp">
       <Filter>Misc\Input</Filter>
     </ClCompile>
@@ -2248,6 +2254,12 @@
       <Filter>Misc</Filter>
     </ClInclude>
     <ClInclude Include="Input\InputManager.h">
+      <Filter>Misc\Input</Filter>
+    </ClInclude>
+    <ClInclude Include="MouseLook.h">
+      <Filter>Misc\Input</Filter>
+    </ClInclude>
+    <ClInclude Include="MouseLookGames.h">
       <Filter>Misc\Input</Filter>
     </ClInclude>
     <ClInclude Include="Input\InputSource.h">

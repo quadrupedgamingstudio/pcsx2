@@ -8,6 +8,7 @@
 #include "ImGui/FullscreenUI.h"
 #include "ImGui/ImGuiOverlays.h"
 #include "Input/InputManager.h"
+#include "MouseLook.h"
 #include "Recording/InputRecording.h"
 #include "SPU2/spu2.h"
 #include "VMManager.h"
@@ -354,5 +355,10 @@ DEFINE_HOTKEY("ToggleMouseLock", TRANSLATE_NOOP("Hotkeys", "System"), TRANSLATE_
 	[](s32 pressed) {
 		if (!pressed)
 			Host::SetMouseLock(!Host::GetBoolSettingValue("EmuCore", "EnableMouseLock"));
+	})
+DEFINE_HOTKEY("ToggleMouseLook", TRANSLATE_NOOP("Hotkeys", "System"), TRANSLATE_NOOP("Hotkeys", "Toggle Mouse Look"),
+	[](s32 pressed) {
+		if (!pressed && VMManager::HasValidVM())
+			MouseLook::Toggle();
 	})
 END_HOTKEY_LIST()

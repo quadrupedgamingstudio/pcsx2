@@ -24,6 +24,7 @@
 #include "Input/InputManager.h"
 #include "IopBios.h"
 #include "MTGS.h"
+#include "MouseLook.h"
 #include "MTVU.h"
 #include "PINE.h"
 #include "Patch.h"
@@ -3049,6 +3050,9 @@ void VMManager::Internal::PollInputOnCPUThread()
 {
 	Host::PumpMessagesOnCPUThread();
 	InputManager::PollSources();
+
+	// Apply this frame's mouse movement to the game's camera (no-op unless mouse look is active).
+	MouseLook::Update();
 
 	if (EmuConfig.EnableRecordingTools)
 	{

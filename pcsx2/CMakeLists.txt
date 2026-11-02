@@ -99,6 +99,8 @@ set(pcsx2Sources
 	PINE.cpp
 	Mdec.cpp
 	Memory.cpp
+	MouseLook.cpp
+	MouseLookGames.cpp
 	MMI.cpp
 	MTGS.cpp
 	MTVU.cpp
@@ -182,6 +184,8 @@ set(pcsx2Headers
 	MTGS.h
 	MTVU.h
 	Memory.h
+	MouseLook.h
+	MouseLookGames.h
 	MemoryTypes.h
 	Patch.h
 	PerformanceMetrics.h

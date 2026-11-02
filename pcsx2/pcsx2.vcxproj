@@ -364,6 +364,8 @@
     <ClCompile Include="Host.cpp" />
     <ClCompile Include="Input\DInputSource.cpp" />
     <ClCompile Include="Input\InputManager.cpp" />
+    <ClCompile Include="MouseLook.cpp" />
+    <ClCompile Include="MouseLookGames.cpp" />
     <ClCompile Include="Input\InputSource.cpp" />
     <ClCompile Include="Input\SDLInputSource.cpp" />
     <ClCompile Include="Input\XInputSource.cpp" />
@@ -810,6 +812,8 @@
     <ClInclude Include="Host.h" />
     <ClInclude Include="Input\DInputSource.h" />
     <ClInclude Include="Input\InputManager.h" />
+    <ClInclude Include="MouseLook.h" />
+    <ClInclude Include="MouseLookGames.h" />
     <ClInclude Include="Input\InputSource.h" />
     <ClInclude Include="Input\SDLInputSource.h" />
     <ClInclude Include="Input\XInputSource.h" />
